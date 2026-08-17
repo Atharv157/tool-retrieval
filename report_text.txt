@@ -1,0 +1,299 @@
+CS 728 Programming Assignment 3
+Retrieval, Attention, and LLM
+Utkarsh Verma
+Roll No: 24M2153
+Abhishek Mishra
+Roll No: 24M2156
+Atharv Shingewar
+Roll No: 24M0834
+
+1
+
+Introduction
+
+Retrieval is a core component in many modern NLP systems. While classical methods such as BM25
+rely on lexical matching, and embedding-based methods capture semantic similarity, recent work
+suggests that attention mechanisms in large language models may also encode retrieval signals.
+In this assignment, we explore retrieval using attention. We first evaluate traditional methods
+(Part 1), then directly use attention for retrieval (Part 2), and finally improve performance by
+selecting a subset of important attention heads (Part 3).
+
+2
+
+Part 1: Baseline Retrieval Methods
+
+We evaluate three standard retrieval methods.
+Method
+BM25
+MiniLM
+UAE
+
+Recall@1
+0.1860
+0.3882
+0.6044
+
+Recall@5
+0.3476
+0.6106
+0.8328
+
+Table 1: Baseline retrieval performance
+Dense embedding methods clearly outperform lexical methods, with UAE achieving the best
+performance.
+
+1
+
+3
+
+Part 2: Attention-based Retrieval
+
+In Part 2, we use attention scores to rank tools.
+Metric
+Recall@1
+Recall@5
+
+Value
+0.0122
+0.2748
+
+Table 2: Attention-based retrieval using all heads
+The performance is significantly lower than embedding methods, indicating that using all attention heads introduces substantial noise.
+
+Attention vs Position
+
+Figure 1: Attention vs position using all heads
+
+4
+
+Part 3: Retrieval using Selected Heads
+
+4.1
+
+Head Selection Strategies
+
+In order to identify the most useful attention heads for retrieval, we explore different ways of
+assigning scores to each head based on its performance on training queries. The underlying idea is
+that a good head should consistently assign higher relevance to the correct tool.
+We experiment with three strategies.
+Reciprocal Rank (MRR-based)
+the rank of the correct tool:
+
+In this approach, each head is scored using the reciprocal of
+score =
+
+1
+rank + 1
+
+2
+
+This formulation is inspired by the Mean Reciprocal Rank (MRR) metric, which is widely used
+in information retrieval. MRR evaluates how close the correct answer appears in a ranked list,
+assigning higher weight to top positions. A head that consistently ranks the correct tool near the
+top will therefore accumulate a higher score.
+A key advantage of this method is that it provides a graded reward. For example, moving the
+correct tool from rank 5 to rank 2 significantly increases the score. This allows the method to
+capture not only perfect predictions but also near-correct ones.
+Recall@1-based Scoring
+at the top:
+
+In this strategy, a head is rewarded only if it ranks the correct tool
+(
+1
+score =
+0
+
+if rank = 0
+otherwise
+
+This is a stricter criterion compared to reciprocal rank. While it directly aligns with the
+Recall@1 metric, it ignores useful information from near-correct rankings, which can make the
+selection process less stable.
+Gold Attention Score
+the correct tool:
+
+This method scores each head based on the raw attention it assigns to
+score = attention(query → gold tool)
+
+Unlike the previous methods, this approach does not explicitly consider ranking. While it
+measures how much attention a head gives to the correct tool, it may not reflect whether the tool
+is actually ranked higher than others.
+Final Decision Among these strategies, Reciprocal Rank provides a good balance between strictness and flexibility. It aligns naturally with ranking-based evaluation metrics and encourages heads
+that consistently improve the position of the correct tool, rather than focusing only on exact matches
+or raw attention values.
+
+4.2
+
+Effect of Number of Heads (MRR)
+
+Here, we present the comparison of different numbers of attention heads selected for the chosen
+approachHeads
+10
+20
+30
+
+Recall@1
+0.4044
+0.3558
+0.2796
+
+Recall@5
+0.7036
+0.6702
+0.6272
+
+Table 3: Effect of number of heads using MRR
+
+3
+
+4.3
+
+Comparison of All Strategies
+
+Here, we present a tabular comparison of the results of all the strategies used in part 3Strategy
+MRR
+MRR
+MRR
+Recall@1
+Recall@1
+Gold Score
+Gold Score
+
+Heads
+10
+20
+30
+10
+20
+10
+20
+
+Recall@1
+0.4044
+0.3558
+0.2796
+0.3990
+0.3526
+0.1236
+0.1414
+
+Recall@5
+0.7036
+0.6702
+0.6272
+0.7036
+0.6684
+0.6728
+0.6084
+
+Table 4: Comparison of all strategies across different number of heads
+
+4.4
+
+Comparison with Part 2
+
+Here, we present a tabular comparison of part 2 results and part 3 resultsMethod
+Part 2 (All Heads)
+Part 3 (Best: MRR, 10 heads)
+
+Recall@1
+0.0122
+0.4044
+
+Recall@5
+0.2748
+0.7036
+
+Table 5: Improvement from head selection
+
+4.5
+
+Visualization
+
+MRR (Different Heads)
+
+(a) 10 heads
+
+(b) 20 heads
+
+(c) 30 heads
+
+Figure 2: MRR-based attention vs position for different head counts
+
+4
+
+Other Strategies
+
+(a) Recall@1
+
+(b) Gold Score
+
+Figure 3: Comparison of different head selection strategies
+
+5
+
+Analysis
+
+5.1
+
+Why Head Selection Works
+
+Using all heads leads to poor performance because many heads capture irrelevant patterns. By
+selecting only the most useful heads, we remove noise and focus on meaningful signals.
+
+5.2
+
+Effect of Number of Heads
+
+Performance is highest with 10 heads and decreases as more heads are added. This shows that only
+a small subset of heads is important, and adding more introduces noise.
+
+5.3
+
+Comparison of Strategies
+
+MRR consistently performs best, followed closely by Recall@1. Gold Score performs significantly
+worse.
+
+5.4
+
+Why Reciprocal Rank Works
+
+MRR uses:
+
+1
+rank + 1
+This gives higher reward when the correct tool is ranked near the top.
+A simple justification comes from Mean Reciprocal Rank:
+1 X 1
+MRR =
+Q
+ranki
+For example:
+
+• rank = 1 : score = 1
+• rank = 5 : score = 0.2
+Thus, improving rank directly increases the score. Unlike Recall@1, this method does not ignore
+near-correct predictions, making it more stable.
+5
+
+5.5
+
+Attention vs Position
+
+Attention generally decreases as the position increases. However, selected heads are less sensitive
+to position, indicating that important heads capture more meaningful relationships.
+
+6
+
+Conclusion
+
+We show that attention alone is not sufficient for retrieval when all heads are used. However,
+selecting a small subset of heads dramatically improves performance.
+Among the strategies, Reciprocal Rank works best because it balances strictness and flexibility.
+These results suggest that attention heads are specialized, and only a few of them are responsible
+for retrieval.
+
+6
+
+
